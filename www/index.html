@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GridMaster: Энергостанция BESS</title>
+<style>
+  :root {
+    --bg: #0a0b10; --card: #13151f; --card2: #1a1d2b; --border: #2a1924;
+    --accent: #e51937; --accent-glow: rgba(229, 25, 55, 0.35);
+    --green: #1fd17a; --yellow: #f5b727; --cyan: #38bdf8; --text: #f3f4f8; --muted: #8b8fa3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); padding-bottom: 88px; min-height: 100vh; }
+  .topbar { position: sticky; top: 0; z-index: 20; background: rgba(10,11,16,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .money { font-size: 20px; font-weight: 800; color: var(--green); }
+  .sub-info { font-size: 11px; color: var(--muted); }
+  .time-box { text-align: right; }
+  .time-main { font-size: 13px; font-weight: 700; color: #fff; }
+  .charge-bar { width: 104px; height: 7px; background: #222536; border-radius: 99px; overflow: hidden; margin-top: 4px; margin-left: auto; }
+  .charge-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); transition: width 0.25s; }
+  .container { padding: 12px 14px; max-width: 560px; margin: 0 auto; }
+  .section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+  .section-title h2 { font-size: 17px; font-weight: 800; }
+  .pill { font-size: 11px; padding: 4px 8px; border-radius: 8px; background: var(--card2); color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 13px; margin-bottom: 11px; box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+  .peak-card { border-left: 3px solid var(--green); }
+  .low-card { border-left: 3px solid var(--cyan); }
+  .alert-card { border-left: 3px solid var(--accent); }
+  .admin-card { border: 1px solid var(--accent); background: #181017; }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .title-main { font-size: 15px; font-weight: 800; color: #fff; }
+  .title-sub { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+  .price-big { font-size: 18px; font-weight: 800; white-space: nowrap; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .tag { font-size: 11px; padding: 3px 8px; border-radius: 7px; background: var(--card2); color: #d5d8e6; }
+  .tag.bad { background: rgba(229,25,55,0.16); color: #ff6b81; border: 1px solid rgba(229,25,55,0.35); }
+  .tag.good { background: rgba(31,209,122,0.14); color: #4ce89b; }
+  .tag.warn { background: rgba(245,183,39,0.14); color: #ffd166; }
+  .tag.cyan { background: rgba(56,189,248,0.14); color: #7dd3fc; }
+  .track { width: 100%; height: 8px; background: #222536; border-radius: 99px; overflow: hidden; margin: 7px 0; }
+  .fill { height: 100%; border-radius: 99px; transition: width 0.25s; }
+  .btn-row { display: flex; gap: 8px; margin-top: 9px; }
+  button, input, select, a.channel-btn { border-radius: 10px; font-size: 13px; }
+  button, a.channel-btn { border: none; padding: 10px 10px; font-weight: 700; cursor: pointer; transition: transform 0.08s, opacity 0.15s; flex: 1; text-decoration: none; text-align: center; display: inline-block; }
+  button:active, a.channel-btn:active { transform: scale(0.97); }
+  input, select { width: 100%; background: var(--card2); color: #fff; border: 1px solid #303042; padding: 10px 12px; outline: none; }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 14px var(--accent-glow); }
+  .btn-secondary { background: var(--card2); color: #fff; border: 1px solid #303042; }
+  .btn-green { background: var(--green); color: #06180f; }
+  .btn-cyan { background: var(--cyan); color: #051923; }
+  .btn-yellow { background: var(--yellow); color: #1b1302; }
+  .btn-disabled { opacity: 0.45; pointer-events: none; }
+  .toast { position: fixed; top: 68px; left: 50%; transform: translateX(-50%); background: #1c1e2b; border: 1px solid var(--accent); color: #fff; padding: 10px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; z-index: 50; max-width: 92%; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.6); display: none; }
+  .navbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #0f1119; border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 8px 4px 12px; }
+  .nav-btn { position: relative; background: transparent; color: var(--muted); padding: 6px 2px; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 3px; box-shadow: none; }
+  .nav-btn.active { color: var(--accent); }
+  .nav-icon { font-size: 18px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .stat-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 11px; }
+  .stat-val { font-size: 17px; font-weight: 800; margin-top: 3px; }
+  .log-item { font-size: 12px; color: var(--muted); padding: 7px 0; border-bottom: 1px solid #1e2130; }
+  .bess-svg { width: 100%; height: 92px; border-radius: 10px; background: linear-gradient(180deg, #161926 0%, #0e1018 100%); border: 1px solid #262a3d; margin: 8px 0; display: block; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <div class="money" id="ui-money">$15,000</div>
+    <div class="sub-info" id="ui-power">Мощность: 0.5 МВт • Износ: 0%</div>
+  </div>
+  <div class="time-box">
+    <div class="time-main" id="ui-time">День 1 • 02:00 (Ночь)</div>
+    <div class="sub-info" id="ui-charge-text">Заряд BESS: 0.25 / 1.0 МВт·ч</div>
+    <div class="charge-bar"><div class="charge-fill" id="ui-charge-bar" style="width:25%"></div></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="container" id="app"></div>
+<div class="navbar">
+  <button class="nav-btn active" onclick="setTab('grid')" id="nav-grid"><span class="nav-icon">⚡</span>Биржа</button>
+  <button class="nav-btn" onclick="setTab('station')" id="nav-station"><span class="nav-icon">🔋</span>Станция</button>
+  <button class="nav-btn" onclick="setTab('contracts')" id="nav-contracts"><span class="nav-icon">📡</span>Контракты</button>
+  <button class="nav-btn" onclick="setTab('profile')" id="nav-profile"><span class="nav-icon">📊</span>Профиль</button>
+</div>
+<script>
+const ADMIN_CODE = "228777";
+const CHANNEL_URL = "https://t.me/legendfirst";
+
+const BESS_MODULES = [
+  { id: "bess_05", name: "CATL Container 0.5 MW / 1 MWh", powerMw: 0.5, capMwh: 1.0, cost: 8000, wearRate: 0.4, color: "#38bdf8" },
+  { id: "bess_15", name: "CATL Skid 1.5 MW / 3 MWh", powerMw: 1.5, capMwh: 3.0, cost: 22000, wearRate: 0.35, color: "#1fd17a" },
+  { id: "bess_30", name: "CATL Block 3.0 MW / 6 MWh", powerMw: 3.0, capMwh: 6.0, cost: 41000, wearRate: 0.3, color: "#f5b727" },
+  { id: "bess_60", name: "CATL Megapack Cluster 6.0 MW / 12 MWh", powerMw: 6.0, capMwh: 12.0, cost: 76000, wearRate: 0.25, color: "#e51937" }
+];
+
+const CONTRACTS = [
+  { id: "freq_reg", title: "Частотное регулирование", desc: "Держи заряд BESS не ниже 40% при сдаче энергии в пик.", bonus: 900, minChargeRatio: 0.4 },
+  { id: "grid_peak", title: "Пиковый разгруз узла", desc: "Продай минимум 0.8 МВт·ч за один шаг при высоком тарифе.", bonus: 1450, minMwhSold: 0.8 },
+  { id: "night_sweep", title: "Ночной выкуп профицита", desc: "Заряди минимум 0.8 МВт·ч в дешёвые часы/ночь.", bonus: 750, minMwhBought: 0.8 }
+];
+
+const DEFAULT_STATE = {
+  money: 15000,
+  day: 1,
+  hour: 2,
+  chargeMwh: 0.25,
+  wear: 0,
+  gridStress: 24,
+  deals: 0,
+  profitTotal: 0,
+  tab: "grid",
+  adminUnlocked: false,
+  showAdminPrompt: false,
+  activeContract: null,
+  modules: [
+    { uid: 1, name: "CATL Container 0.5 MW / 1 MWh", powerMw: 0.5, capMwh: 1.0, color: "#38bdf8", active: true }
+  ],
+  logs: ["Старт: $15,000 и первый модуль CATL 0.5 МВт. Заряжай дёшево — продавай на пике!"],
+  lastEvent: "Ночь: тариф на электроэнергию низкий, самое время заряжать накопители."
+};
+
+let state = loadState();
+if (!state.activeContract) pickContract();
+saveState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem("gridmaster_bess_v1");
+    const parsed = raw ? JSON.parse(raw) : {};
+    return Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), parsed);
+  } catch (e) {
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+}
+
+function saveState() {
+  localStorage.setItem("gridmaster_bess_v1", JSON.stringify(state));
+}
+
+function fmt(n) {
+  return "$" + Math.round(n).toLocaleString("en-US");
+}
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(window._gmToast);
+  window._gmToast = setTimeout(() => { el.style.display = "none"; }, 2700);
+}
+
+function addLog(text) {
+  state.logs.unshift(`День ${state.day}, ${String(state.hour).padStart(2, "0")}:00 — ${text}`);
+  if (state.logs.length > 35) state.logs.pop();
+}
+
+function pickContract() {
+  const c = CONTRACTS[Math.floor(Math.random() * CONTRACTS.length)];
+  state.activeContract = { id: c.id, title: c.title, desc: c.desc, bonus: c.bonus, done: false };
+}
+
+function getTotalPowerMw() {
+  return Number(state.modules.filter(m => m.active).reduce((acc, m) => acc + m.powerMw, 0).toFixed(1));
+}
+
+function getTotalCapMwh() {
+  const rawCap = state.modules.filter(m => m.active).reduce((acc, m) => acc + m.capMwh, 0);
+  const wearPenalty = Math.max(0.65, 1 - (state.wear / 100) * 0.35);
+  return Number((rawCap * wearPenalty).toFixed(2));
+}
+
+function getTariffPerMwh() {
+  const h = state.hour;
+  let base = 180;
+  let zone = "Дневной режим";
+  if (h >= 0 && h < 6) { base = 95; zone = "Ночной профицит"; }
+  else if (h >= 6 && h < 10) { base = 240; zone = "Утренний пик"; }
+  else if (h >= 10 && h < 17) { base = 155; zone = "Дневной баланс"; }
+  else if (h >= 17 && h < 22) { base = 360; zone = "Вечерний пик"; }
+  else { base = 190; zone = "Поздний вечер"; }
+  const stressMult = 1 + (state.gridStress - 30) * 0.006;
+  const price = Math.max(60, Math.round(base * stressMult));
+  return { price, zone };
+}
+
+function advanceHours(step) {
+  state.hour += step;
+  while (state.hour >= 24) {
+    state.hour -= 24;
+    state.day += 1;
+    pickContract();
+    addLog(`Наступил День ${state.day}. Выдан новый сетевой контракт.`);
+  }
+  const drift = Math.floor(-10 + Math.random() * 24);
+  state.gridStress = Math.max(10, Math.min(95, state.gridStress + drift));
+  const cap = getTotalCapMwh();
+  if (state.chargeMwh > cap) state.chargeMwh = cap;
+
+  if (state.gridStress > 78 && Math.random() < 0.35) {
+    const fine = 350;
+    state.money = Math.max(0, state.money - fine);
+    state.wear = Math.min(100, Number((state.wear + 1.5).toFixed(1)));
+    state.lastEvent = `Пиковая перегрузка узла! Штраф и нагрузка на BESS (-${fmt(fine)}).`;
+    addLog(state.lastEvent);
+    toast(`⚡ Перегрузка сети! Потеряно ${fmt(fine)}`);
+  } else {
+    const t = getTariffPerMwh();
+    state.lastEvent = `${t.zone}: тариф ${fmt(t.price)} за МВт·ч • Загрузка сети ${state.gridStress}%.`;
+  }
+}
+
+function checkContract(soldMwh, boughtMwh) {
+  const act = state.activeContract;
+  if (!act || act.done) return;
+  const def = CONTRACTS.find(c => c.id === act.id);
+  const cap = Math.max(0.1, getTotalCapMwh());
+  let ok = false;
+  if (def.id === "freq_reg" && soldMwh > 0 && (state.chargeMwh / cap) >= def.minChargeRatio) ok = true;
+  if (def.id === "grid_peak" && soldMwh >= def.minMwhSold && getTariffPerMwh().price >= 240) ok = true;
+  if (def.id === "night_sweep" && boughtMwh >= def.minMwhBought && getTariffPerMwh().price <= 180) ok = true;
+  if (ok) {
+    act.done = true;
+    state.money += act.bonus;
+    state.profitTotal += act.bonus;
+    addLog(`Контракт «${act.title}» выполнен! Бонус +${fmt(act.bonus)}`);
+    toast(`📡 Контракт выполнен! +${fmt(act.bonus)}`);
+  }
+}
+
+function buyEnergy() {
+  const cap = getTotalCapMwh();
+  const freeSpace = Number((cap - state.chargeMwh).toFixed(2));
+  if (freeSpace <= 0.01) return toast("Накопители BESS уже заполнены до предела!");
+  const stepMwh = Number(Math.min(freeSpace, Math.max(0.25, getTotalPowerMw())).toFixed(2));
+  const tariff = getTariffPerMwh().price;
+  const cost = Math.round(stepMwh * tariff);
+  if (state.money < cost) return toast(`Не хватает ${fmt(cost)} на закупку ${stepMwh} МВт·ч!`);
+
+  state.money -= cost;
+  state.chargeMwh = Number((state.chargeMwh + stepMwh).toFixed(2));
+  state.wear = Math.min(100, Number((state.wear + stepMwh * 0.45).toFixed(1)));
+  checkContract(0, stepMwh);
+  advanceHours(2);
+  addLog(`Зарядил +${stepMwh} МВт·ч по ${fmt(tariff)} (-${fmt(cost)})`);
+  toast(`Заряжено +${stepMwh} МВт·ч за ${fmt(cost)}`);
+  saveState(); render();
+}
+
+function sellEnergy() {
+  if (state.chargeMwh <= 0.01) return toast("В накопителях нет заряда для выдачи в сеть!");
+  const sellMwh = Number(Math.min(state.chargeMwh, Math.max(0.25, getTotalPowerMw())).toFixed(2));
+  const tariff = getTariffPerMwh().price;
+  const revenue = Math.round(sellMwh * tariff);
+
+  state.chargeMwh = Number((state.chargeMwh - sellMwh).toFixed(2));
+  state.money += revenue;
+  state.deals += 1;
+  state.profitTotal += revenue;
+  state.wear = Math.min(100, Number((state.wear + sellMwh * 0.6).toFixed(1)));
+  checkContract(sellMwh, 0);
+  advanceHours(2);
+  addLog(`Продал в сеть ${sellMwh} МВт·ч по ${fmt(tariff)} (+${fmt(revenue)})`);
+  toast(`Выдано ${sellMwh} МВт·ч! Выручка +${fmt(revenue)}`);
+  saveState(); render();
+}
+
+function waitHours(h) {
+  advanceHours(h);
+  toast(`Прошло ${h} ч.`);
+  saveState(); render();
+}
+
+function buyModule(idx) {
+  const m = BESS_MODULES[idx];
+  if (!m) return;
+  if (state.money < m.cost) return toast(`Нужно ${fmt(m.cost)} для покупки модуля!`);
+  state.money -= m.cost;
+  state.modules.push({
+    uid: Date.now() + Math.random(),
+    name: m.name,
+    powerMw: m.powerMw,
+    capMwh: m.capMwh,
+    color: m.color,
+    active: true
+  });
+  addLog(`Установлен модуль ${m.name} (-${fmt(m.cost)})`);
+  toast(`Добавлен ${m.name}!`);
+  saveState(); render();
+}
+
+function toggleModule(i) {
+  const mod = state.modules[i];
+  if (!mod) return;
+  mod.active = !mod.active;
+  const cap = getTotalCapMwh();
+  if (state.chargeMwh > cap) state.chargeMwh = cap;
+  saveState(); render();
+}
+
+function serviceStation() {
+  if (state.wear <= 0.5) return toast("Станция и так в отличном состоянии!");
+  const cost = Math.max(250, Math.round(state.wear * 35));
+  if (state.money < cost) return toast(`Нужно ${fmt(cost)} на техобслуживание!`);
+  state.money -= cost;
+  state.wear = 0;
+  addLog(`Провёл ТО и балансировку ячеек (-${fmt(cost)})`);
+  toast(`ТО завершено! Износ снижен до 0%.`);
+  saveState(); render();
+}
+
+function verifyAdminCode() {
+  const inp = document.getElementById("admin-code-input");
+  if (!inp) return;
+  if (inp.value.trim() === ADMIN_CODE) {
+    state.adminUnlocked = true;
+    state.showAdminPrompt = false;
+    toast("🔓 Админ-панель открыта!");
+  } else {
+    toast("Неверный код.");
+  }
+  saveState(); render();
+}
+
+function adminAddMoney(amt) {
+  state.money += amt;
+  addLog(`[АДМИН] +${fmt(amt)}`);
+  toast(`+${fmt(amt)} на баланс`);
+  saveState(); render();
+}
+
+function adminAddMegapack() {
+  const m = BESS_MODULES[3];
+  state.modules.push({
+    uid: Date.now() + Math.random(),
+    name: m.name + " [Admin]",
+    powerMw: m.powerMw,
+    capMwh: m.capMwh,
+    color: m.color,
+    active: true
+  });
+  state.chargeMwh = getTotalCapMwh();
+  addLog(`[АДМИН] Добавлен кластер 6.0 МВт`);
+  toast("Добавлен кластер 6.0 МВт и полный заряд!");
+  saveState(); render();
+}
+
+function exportSave() {
+  const area = document.getElementById("save-box");
+  if (!area) return;
+  area.value = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+  area.select();
+  toast("Код сейва сгенерирован.");
+}
+
+function importSave() {
+  const area = document.getElementById("save-box");
+  if (!area || !area.value.trim()) return toast("Вставь код сейва!");
+  try {
+    const parsed = JSON.parse(decodeURIComponent(escape(atob(area.value.trim()))));
+    state = Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), parsed);
+    saveState(); render();
+    toast("Сейв загружен!");
+  } catch (e) {
+    toast("Некорректный код сейва.");
+  }
+}
+
+function resetGame() {
+  if (!confirm("Сбросить прогресс энергостанции?")) return;
+  localStorage.removeItem("gridmaster_bess_v1");
+  state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  pickContract();
+  saveState(); render();
+}
+
+function setTab(t) {
+  state.tab = t;
+  saveState(); render();
+}
+
+function renderBessSvg() {
+  const totalMw = getTotalPowerMw();
+  const cap = Math.max(0.1, getTotalCapMwh());
+  const pct = Math.min(100, Math.max(0, Math.round((state.chargeMwh / cap) * 100)));
+  const fillW = Math.round((pct / 100) * 176);
+  const barColor = pct > 55 ? "#1fd17a" : (pct > 25 ? "#f5b727" : "#e51937");
+  return `
+  <svg class="bess-svg" viewBox="0 0 280 92" xmlns="http://www.w3.org/2000/svg">
+    <rect x="14" y="16" width="252" height="60" rx="10" fill="#171b29" stroke="#2d334d" stroke-width="2"/>
+    <rect x="26" y="28" width="184" height="36" rx="6" fill="#0d1018" stroke="#363d5c"/>
+    <rect x="30" y="32" width="${fillW}" height="28" rx="4" fill="${barColor}"/>
+    <text x="122" y="51" fill="#ffffff" font-size="12" font-weight="800" text-anchor="middle">${pct}% (${state.chargeMwh}/${cap} МВт·ч)</text>
+    <text x="238" y="42" fill="#8b8fa3" font-size="10" font-weight="700" text-anchor="middle">МОЩНОСТЬ</text>
+    <text x="238" y="58" fill="#38bdf8" font-size="13" font-weight="800" text-anchor="middle">${totalMw} МВт</text>
+  </svg>`;
+}
+
+function render() {
+  const powerMw = getTotalPowerMw();
+  const capMwh = getTotalCapMwh();
+  const pct = capMwh > 0 ? Math.min(100, Math.round((state.chargeMwh / capMwh) * 100)) : 0;
+  const tariff = getTariffPerMwh();
+
+  document.getElementById("ui-money").textContent = fmt(state.money);
+  document.getElementById("ui-power").textContent = `Мощность: ${powerMw} МВт • Износ: ${state.wear}%`;
+  document.getElementById("ui-time").textContent = `День ${state.day} • ${String(state.hour).padStart(2, "0")}:00`;
+  document.getElementById("ui-charge-text").textContent = `BESS: ${state.chargeMwh} / ${capMwh} МВт·ч`;
+  document.getElementById("ui-charge-bar").style.width = `${pct}%`;
+
+  ["grid", "station", "contracts", "profile"].forEach(id => {
+    document.getElementById("nav-" + id).classList.toggle("active", state.tab === id);
+  });
+
+  const app = document.getElementById("app");
+  if (state.tab === "grid") {
+    const stepMwh = Number(Math.max(0.25, powerMw).toFixed(2));
+    const buyCost = Math.round(stepMwh * tariff.price);
+    const sellVol = Number(Math.min(state.chargeMwh, stepMwh).toFixed(2));
+    const sellRev = Math.round(sellVol * tariff.price);
+    const isPeak = tariff.price >= 240;
+
+    app.innerHTML = `
+      <div class="section-title"><h2>Энергобиржа</h2><span class="pill">${tariff.zone}</span></div>
+      <div class="card ${isPeak ? 'peak-card' : 'low-card'}">
+        <div class="card-head">
+          <div>
+            <div class="title-main">Текущий тариф сети</div>
+            <div class="title-sub">${state.lastEvent}</div>
+          </div>
+          <div class="price-big" style="color:${isPeak ? 'var(--green)' : 'var(--cyan)'}">${fmt(tariff.price)}<span style="font-size:11px;color:var(--muted)"> /МВт·ч</span></div>
+        </div>
+        ${renderBessSvg()}
+        <div class="tags">
+          <span class="tag ${state.gridStress > 70 ? 'bad' : 'good'}">Загрузка узла: ${state.gridStress}%</span>
+          <span class="tag cyan">Шаг операции: до ${stepMwh} МВт·ч (+2ч)</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn-cyan" onclick="buyEnergy()">Зарядить (${fmt(buyCost)})</button>
+          <button class="btn-green ${sellVol <= 0 ? 'btn-disabled' : ''}" onclick="sellEnergy()">Продать (${fmt(sellRev)})</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="waitHours(2)">Подождать 2ч</button>
+          <button class="btn-secondary" onclick="waitHours(6)">Подождать 6ч</button>
+        </div>
+      </div>`;
+  } else if (state.tab === "station") {
+    const serviceCost = Math.max(250, Math.round(state.wear * 35));
+    let modsHtml = state.modules.map((m, i) => `
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="title-main">${m.name}</div>
+            <div class="title-sub">${m.powerMw} МВт • Ёмкость ${m.capMwh} МВт·ч</div>
+          </div>
+          <span class="tag ${m.active ? 'good' : 'bad'}">${m.active ? 'В сети' : 'Отключён'}</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="toggleModule(${i})">${m.active ? 'Отключить блок' : 'Включить блок'}</button>
+        </div>
+      </div>
+    `).join("");
+
+    let shopHtml = BESS_MODULES.map((m, i) => `
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="title-main">${m.name}</div>
+            <div class="title-sub">+${m.powerMw} МВт • +${m.capMwh} МВт·ч ёмкости</div>
+          </div>
+          <div class="price-big" style="color:var(--yellow)">${fmt(m.cost)}</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-primary" onclick="buyModule(${i})">Установить модуль</button>
+        </div>
+      </div>
+    `).join("");
+
+    app.innerHTML = `
+      <div class="section-title"><h2>Станция BESS</h2><span class="pill">Цель: 6.0 МВт</span></div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="title-main">Состояние и техобслуживание</div>
+            <div class="title-sub">Износ батарей снижает доступную ёмкость. ТО стоит ${fmt(serviceCost)}.</div>
+          </div>
+          <div class="price-big" style="color:${state.wear > 40 ? '#ff6b81' : 'var(--green)'}">${state.wear}%</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-yellow ${state.wear <= 0.5 ? 'btn-disabled' : ''}" onclick="serviceStation()">Провести ТО (${fmt(serviceCost)})</button>
+        </div>
+      </div>
+      ${modsHtml}
+      <div class="section-title" style="margin-top:14px"><h2>Магазин модулей</h2><span class="pill">${fmt(state.money)}</span></div>
+      ${shopHtml}`;
+  } else if (state.tab === "contracts") {
+    const act = state.activeContract;
+    app.innerHTML = `
+      <div class="section-title"><h2>Контракты и журнал</h2><span class="pill">День ${state.day}</span></div>
+      ${act ? `
+      <div class="card peak-card">
+        <div class="card-head">
+          <div>
+            <div class="title-main">${act.title}</div>
+            <div class="title-sub">${act.desc}</div>
+          </div>
+          <span class="tag ${act.done ? 'good' : 'warn'}">${act.done ? '✓ Выполнен' : '+' + fmt(act.bonus)}</span>
+        </div>
+      </div>` : ``}
+      <div class="card">
+        <div class="title-main" style="margin-bottom:6px">Журнал операций</div>
+        ${state.logs.map(l => `<div class="log-item">${l}</div>`).join("")}
+      </div>`;
+  } else {
+    let adminHtml = "";
+    if (state.adminUnlocked) {
+      adminHtml = `
+      <div class="card admin-card">
+        <div class="title-main" style="color:#ff6b81;margin-bottom:8px">🛠 Админ-панель</div>
+        <div class="btn-row">
+          <button class="btn-green" onclick="adminAddMoney(25000)">+$25,000</button>
+          <button class="btn-green" onclick="adminAddMoney(250000)">+$250,000</button>
+          <button class="btn-yellow" onclick="adminAddMegapack()">+6.0 МВт Блок</button>
+        </div>
+      </div>`;
+    } else if (state.showAdminPrompt) {
+      adminHtml = `
+      <div class="card admin-card">
+        <div class="title-main" style="margin-bottom:8px">Код доступа</div>
+        <div class="btn-row">
+          <input id="admin-code-input" type="password" placeholder="Введите код...">
+          <button class="btn-primary" style="flex:0;white-space:nowrap" onclick="verifyAdminCode()">Войти</button>
+        </div>
+      </div>`;
+    }
+
+    app.innerHTML = `
+      <div class="section-title"><h2>Профиль станции</h2><span class="pill">${getTotalPowerMw()} МВт</span></div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="sub-info">Баланс</div><div class="stat-val" style="color:var(--green)">${fmt(state.money)}</div></div>
+        <div class="stat-box"><div class="sub-info">Оборот / профит</div><div class="stat-val" style="color:var(--cyan)">${fmt(state.profitTotal)}</div></div>
+        <div class="stat-box"><div class="sub-info">Выдач в сеть</div><div class="stat-val">${state.deals}</div></div>
+        <div class="stat-box"><div class="sub-info">Ёмкость BESS</div><div class="stat-val" style="color:var(--yellow)">${getTotalCapMwh()} МВт·ч</div></div>
+      </div>
+      <div class="card">
+        <div class="title-main" style="margin-bottom:6px">Наш Telegram-канал</div>
+        <div class="title-sub" style="margin-bottom:8px">Обновления игр и разборы проектов:</div>
+        <div class="btn-row">
+          <a class="channel-btn btn-primary" href="${CHANNEL_URL}" target="_blank" rel="noopener noreferrer">📢 Перейти в @legendfirst</a>
+        </div>
+      </div>
+      <div class="card">
+        <div class="title-main" style="margin-bottom:6px">Экспорт / импорт сейва</div>
+        <textarea id="save-box" rows="2" style="width:100%;background:var(--card2);color:#fff;border:1px solid #303042;border-radius:10px;padding:8px;font-size:11px" placeholder="Код сохранения..."></textarea>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="exportSave()">Экспорт</button>
+          <button class="btn-secondary" onclick="importSave()">Импорт</button>
+        </div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn-secondary" onclick="state.showAdminPrompt=!state.showAdminPrompt;saveState();render()">🔑 Код доступа</button>
+          <button class="btn-primary" onclick="resetGame()">Сброс</button>
+        </div>
+      </div>
+      ${adminHtml}`;
+  }
+}
+
+render();
+</script>
+</body>
+</html>
