@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Capacitor & Build Android
         run: |
@@ -36,6 +36,4 @@ jobs:
         with:
           name: gridmaster-bess-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-
-
           
